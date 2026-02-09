@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campus Voice: Ultra Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono&display=swap');
+
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --accent: #4f46e5; /* Electric Indigo */
+            --accent-soft: rgba(79, 70, 229, 0.1);
+            --accent-glow: rgba(79, 70, 229, 0.25);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --success: #10b981;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: #f1f5f9;
+            color: var(--text-main);
+            user-select: none;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* High-End Glass Morphism */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .hud {
+            padding: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            pointer-events: auto;
+        }
+
+        .stat-group {
+            display: flex;
+            gap: 16px;
+        }
+
+        .stat-box {
+            padding: 10px 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            letter-spacing: -0.01em;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        /* Premium Dialogue System */
+        #dialogue-box {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 850px;
+            display: none;
+            pointer-events: auto;
+            overflow: hidden;
+            animation: slideUp 0.5s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+
+        @keyframes slideUp {
+            from { transform: translate(-50%, 40px); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
+
+        .chat-header {
+            padding: 18px 28px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .chat-user {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .avatar-box {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), #818cf8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 0.8rem;
+            box-shadow: 0 8px 16px var(--accent-glow);
+        }
+
+        .chat-name {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+
+        .chat-content {
+            padding: 28px;
+            min-height: 120px;
+        }
+
+        .dialogue-text {
+            font-size: 1.15rem;
+            line-height: 1.6;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .typing-cursor::after {
+            content: "";
+            display: inline-block;
+            width: 3px;
+            height: 20px;
+            background: var(--accent);
+            margin-left: 6px;
+            vertical-align: middle;
+            animation: blink 0.8s infinite;
+        }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .options-container {
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 1px solid transparent;
+            padding: 16px 24px;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+
+        .option-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .key-hint {
+            background: var(--accent-soft);
+            color: var(--accent);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 800;
+        }
+
+        #interact-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            color: var(--accent);
+            padding: 16px 36px;
+            border-radius: 50px;
+            display: none;
+            font-size: 0.9rem;
+            font-weight: 800;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            z-index: 15;
+            border: 1px solid var(--accent-soft);
+        }
+
+        #overlay-screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #f8fafc;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hero-card {
+            background: white;
+            padding: 64px;
+            border-radius: 48px;
+            box-shadow: 0 30px 100px -20px rgba(0,0,0,0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            padding: 20px 56px;
+            border: none;
+            border-radius: 20px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 12px 30px var(--accent-glow);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05) translateY(-4px);
+            box-shadow: 0 20px 40px var(--accent-glow);
+        }
+
+        .credit-footer {
+            margin-top: 40px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .credit-footer b {
+            color: var(--accent);
+        }
+
+        /* Fixed Branding */
+        .branding-badge {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 10px 16px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(8px);
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            z-index: 1000;
+            letter-spacing: 0.1em;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container"></div>
+
+    <div class="branding-badge">@ROHITH-GUDIPUDI</div>
+
+    <div id="ui-layer">
+        <div class="hud">
+            <div class="stat-group">
+                <div class="stat-box glass">
+                    <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+                    <span id="level-display">Phase 01</span>
+                </div>
+                <div class="stat-box glass">
+                    <div class="stat-icon"><i class="fas fa-bolt"></i></div>
+                    <span id="score-display">0 XP</span>
+                </div>
+            </div>
+            <div class="stat-box glass">
+                <div class="stat-icon"><i class="fas fa-fingerprint"></i></div>
+                <span id="confidence-display">Reputation: 100%</span>
+            </div>
+        </div>
+
+        <div id="interact-prompt">PRESS 'E' TO DISCUSS</div>
+
+        <!-- Premium Dialogue UI -->
+        <div id="dialogue-box" class="glass">
+            <div class="chat-header">
+                <div class="chat-user">
+                    <div class="avatar-box" id="chat-avatar">ST</div>
+                    <span class="chat-name" id="speaker-name">Principal</span>
+                </div>
+                <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 800; opacity: 0.5;">LIVE COMMS</div>
+            </div>
+            <div class="chat-content">
+                <div class="dialogue-text" id="dialogue-text"></div>
+            </div>
+            <div class="options-container" id="options-container" style="display:none;">
+                <div class="options-grid" id="options-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay-screen">
+        <div class="hero-card">
+            <div style="width: 80px; height: 80px; background: var(--accent-soft); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin-bottom: 32px;">
+                <i class="fas fa-shield-alt" style="font-size: 2.5rem; color: var(--accent);"></i>
+            </div>
+            <h1 style="font-size: 2.5rem; margin: 0 0 12px 0; font-weight: 800; letter-spacing: -0.04em;">Campus Voice</h1>
+            <p style="color: var(--text-muted); font-size: 1.1rem; margin-bottom: 48px; line-height: 1.5;">Step into the world of elite student politics with professional glass aesthetics.</p>
+            
+            <button class="btn-primary" onclick="startGame()">Start Campaign</button>
+            
+            <div class="credit-footer">
+                Architected by <b>@Rohith-Gudipudi</b>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ChatUI = {
+            isTyping: false,
+            typingTimer: null,
+            typeWriter(text, elementId, speed = 15) {
+                if (this.typingTimer) clearInterval(this.typingTimer);
+                this.isTyping = true;
+                const element = document.getElementById(elementId);
+                element.innerHTML = "";
+                element.classList.add('typing-cursor');
+                document.getElementById('options-container').style.display = 'none';
+                
+                let i = 0;
+                this.typingTimer = setInterval(() => {
+                    if (i < text.length) {
+                        element.innerHTML += text.charAt(i);
+                        i++;
+                    } else {
+                        clearInterval(this.typingTimer);
+                        element.classList.remove('typing-cursor');
+                        this.isTyping = false;
+                        document.getElementById('options-container').style.display = 'block';
+                    }
+                }, speed);
+            }
+        };
+
+        // --- WORLD SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf1f5f9);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 15, 20);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('game-container').appendChild(renderer.domElement);
+
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x94a3b8, 1));
+        const spotlight = new THREE.SpotLight(0xffffff, 0.8);
+        spotlight.position.set(15, 40, 25);
+        spotlight.castShadow = true;
+        spotlight.shadow.mapSize.width = 4096;
+        spotlight.shadow.mapSize.height = 4096;
+        scene.add(spotlight);
+
+        function createChar(color, x, z) {
+            const g = new THREE.Group();
+            const body = new THREE.Mesh(
+                new THREE.CapsuleGeometry(0.4, 0.8), 
+                new THREE.MeshStandardMaterial({ color, roughness: 0.1, metalness: 0.1 })
+            );
+            body.position.y = 0.8;
+            body.castShadow = true;
+            g.add(body);
+            
+            const head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.32), 
+                new THREE.MeshStandardMaterial({ color: 0xffdbac })
+            );
+            head.position.y = 1.6;
+            head.castShadow = true;
+            g.add(head);
+            
+            g.position.set(x, 0, z);
+            scene.add(g);
+            return g;
+        }
+
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(300, 300), 
+            new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 })
+        );
+        ground.rotation.x = -Math.PI/2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const grid = new THREE.GridHelper(100, 40, 0xe2e8f0, 0xf1f5f9);
+        grid.position.y = 0.02;
+        scene.add(grid);
+
+        const player = createChar(0x4f46e5, 0, 5);
+        const student = createChar(0x10b981, -8, -5); 
+        const management = createChar(0xf43f5e, 8, -15);
+
+        const Levels = [{
+            studentMsg: "Leader garu! Canteen food quality chala worst ga undi. Students health kharab avthundi. Miru Management thoti matladi deeniki oka permanent solution vethakaali.",
+            mgmtMsg: "Mr. Student Leader, our current catering contract is budget-friendly. Changing it now is logistically impossible. Why should we listen to these complaints?",
+            choices: [
+                { text: "Eeroju food sample test cheyiddham, results ni batti decision teesukundham sir. [1]", correct: true, feedback: "Evidence-based logic worked!" },
+                { text: "Quality penchalsindhe, lekapothe memu strike ki veltham. [2]", correct: false, feedback: "Direct threats closed the doors for negotiation." }
+            ]
+        }];
+
+        let state = { phase: 'start', sub: 'listen', score: 0, options: [] };
+        const keys = {};
+
+        window.addEventListener('keydown', e => {
+            const k = e.key.toLowerCase();
+            keys[k] = true;
+            if (k === 'e') handleInteract();
+            if (state.phase === 'dialogue' && !ChatUI.isTyping) {
+                if (['1','2'].includes(k)) {
+                    const idx = parseInt(k) - 1;
+                    if (state.options[idx]) state.options[idx].action();
+                }
+            }
+        });
+        window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+        function handleInteract() {
+            if (state.phase === 'dialogue') return;
+            const target = state.sub === 'listen' ? student : management;
+            if (player.position.distanceTo(target.position) < 4) startDialogue(target);
+        }
+
+        function startDialogue(target) {
+            state.phase = 'dialogue';
+            document.getElementById('dialogue-box').style.display = 'block';
+            const lvl = Levels[0];
+            
+            if (target === student) {
+                updateBox("Akhil (Student Rep)", "AK", lvl.studentMsg);
+                renderOptions([{ text: "I'll handle this professionally. [1]", action: () => {
+                    state.sub = 'report';
+                    closeDialogue();
+                }}]);
+            } else {
+                updateBox("College Admin", "ADM", lvl.mgmtMsg);
+                renderOptions(lvl.choices.map((c, i) => ({ text: c.text, action: () => handleReply(c) })));
+            }
+        }
+
+        function updateBox(name, avatar, text) {
+            document.getElementById('speaker-name').innerText = name;
+            document.getElementById('chat-avatar').innerText = avatar;
+            ChatUI.typeWriter(text, 'dialogue-text');
+        }
+
+        function renderOptions(opts) {
+            state.options = opts;
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = "";
+            opts.forEach((o, i) => {
+                const b = document.createElement('div');
+                b.className = 'option-btn';
+                b.innerHTML = `<span class="key-hint">${i+1}</span> ${o.text}`;
+                b.onclick = o.action;
+                grid.appendChild(b);
+            });
+        }
+
+        function handleReply(choice) {
+            if (choice.correct) {
+                state.score += 500;
+                document.getElementById('score-display').innerText = state.score + " XP";
+                updateBox("Admin", "ADM", "Fair point. " + choice.feedback + " Let's conduct a joint inspection tomorrow.");
+                renderOptions([{ text: "Challenge Complete. [1]", action: () => win() }]);
+            } else {
+                state.score -= 100;
+                document.getElementById('score-display').innerText = state.score + " XP";
+                updateBox("Admin", "ADM", "That's not how we do things here. " + choice.feedback);
+                renderOptions([{ text: "Try another approach... [1]", action: () => startDialogue(management) }]);
+            }
+        }
+
+        function closeDialogue() {
+            state.phase = 'roaming';
+            document.getElementById('dialogue-box').style.display = 'none';
+        }
+
+        function win() {
+            closeDialogue();
+            document.getElementById('overlay-screen').style.display = 'flex';
+            document.getElementById('overlay-screen').innerHTML = `
+                <div class="hero-card">
+                    <div style="width: 80px; height: 80px; background: #ecfdf5; border-radius: 24px; display: flex; align-items: center; justify-content: center; margin-bottom: 32px;">
+                        <i class="fas fa-check-circle" style="font-size: 2.5rem; color: #10b981;"></i>
+                    </div>
+                    <h2 style="font-size: 2.5rem; margin-bottom: 12px; font-weight: 800; letter-spacing: -0.04em;">Success</h2>
+                    <p style="color: var(--text-muted); margin-bottom: 40px;">Issue resolved with logic and leadership.</p>
+                    <button class="btn-primary" onclick="location.reload()">Next Campaign</button>
+                    <div class="credit-footer" style="margin-top: 40px;">DESIGNED BY <b>@ROHITH-GUDIPUDI</b></div>
+                </div>
+            `;
+        }
+
+        function startGame() {
+            document.getElementById('overlay-screen').style.display = 'none';
+            state.phase = 'roaming';
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (state.phase === 'roaming') {
+                if (keys.w) player.position.z -= 0.15;
+                if (keys.s) player.position.z += 0.15;
+                if (keys.a) player.position.x -= 0.15;
+                if (keys.d) player.position.x += 0.15;
+                
+                const idealCamera = new THREE.Vector3(player.position.x, 12, player.position.z + 16);
+                camera.position.lerp(idealCamera, 0.1);
+                camera.lookAt(player.position.x, 0, player.position.z);
+
+                const target = state.sub === 'listen' ? student : management;
+                document.getElementById('interact-prompt').style.display = player.position.distanceTo(target.position) < 4 ? 'block' : 'none';
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
